@@ -1,0 +1,243 @@
+[
+    {
+        "id": "tab_master_control",
+        "type": "tab",
+        "label": "Master Control Center",
+        "disabled": false,
+        "info": "Controls the Unified Pacemaker Simulation"
+    },
+    {
+        "id": "group_attacks",
+        "type": "group",
+        "z": "tab_master_control",
+        "name": "Attack Simulation",
+        "style": {
+            "stroke": "#ff0000",
+            "fill": "#ffcccc",
+            "label": true
+        },
+        "nodes": [
+            "inject_dos",
+            "inject_smurf",
+            "inject_arp",
+            "inject_scan"
+        ],
+        "x": 114,
+        "y": 179,
+        "w": 192,
+        "h": 242
+    },
+    {
+        "id": "inject_normal",
+        "type": "inject",
+        "z": "tab_master_control",
+        "name": "🟢 Normal / Reset",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Normal",
+        "payloadType": "str",
+        "x": 210,
+        "y": 100,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_dos",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_attacks",
+        "name": "🔥 DoS Attack",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "DoS",
+        "payloadType": "str",
+        "x": 210,
+        "y": 220,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_smurf",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_attacks",
+        "name": "🌊 Smurf Attack",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Smurf",
+        "payloadType": "str",
+        "x": 210,
+        "y": 280,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_arp",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_attacks",
+        "name": "🕵️ ARP Spoof",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "ARP",
+        "payloadType": "str",
+        "x": 210,
+        "y": 340,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_scan",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_attacks",
+        "name": "📡 Port Scan",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Scan",
+        "payloadType": "str",
+        "x": 210,
+        "y": 400,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_master_out",
+        "type": "mqtt out",
+        "z": "tab_master_control",
+        "name": "Send to Pacemaker",
+        "topic": "simulation/master_control",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker_local",
+        "x": 510,
+        "y": 250,
+        "wires": []
+    },
+    {
+        "id": "mqtt_ecg_in",
+        "type": "mqtt in",
+        "z": "tab_master_control",
+        "name": "Monitor ECG",
+        "topic": "ioht/ecg",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "broker_local",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 190,
+        "y": 520,
+        "wires": [
+            [
+                "debug_ecg_status"
+            ]
+        ]
+    },
+    {
+        "id": "debug_ecg_status",
+        "type": "debug",
+        "z": "tab_master_control",
+        "name": "Current Pacemaker Status",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload.status",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 440,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "broker_local",
+        "type": "mqtt-broker",
+        "name": "Localhost",
+        "broker": "127.0.0.1",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "userProps": "",
+        "sessionExpiry": ""
+    }
+]
