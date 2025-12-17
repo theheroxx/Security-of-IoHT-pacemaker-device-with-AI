@@ -1,0 +1,5 @@
+sudo npm install -g --unsafe-perm node-red
+
+pip install streamlit
+
+https://mosquitto.org/files/binary/win64/mosquitto-2.0.22-install-windows-x64.exe

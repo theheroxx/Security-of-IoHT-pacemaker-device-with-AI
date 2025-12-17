@@ -1,0 +1,4 @@
+mosquitto -v
+python pacemaker_device.py
+python ecg_ai_service.py
+streamlit run streamlit_app.py
