@@ -4,11 +4,10 @@ import numpy as np
 import joblib
 import paho.mqtt.client as mqtt
 import json
-import os
+import time
+import sys
 
-# ==========================================
-# 1. CLASS DEFINITIONS (Must match saved models)
-# ==========================================
+# ================= CLASS DEFS (Must match training) =================
 class RobustEnsemble(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_classes):
         super(RobustEnsemble, self).__init__()
@@ -23,130 +22,107 @@ class RobustEnsemble(nn.Module):
         lstm_out, _ = self.bilstm(x)
         rnn_out, _ = self.rnn(x)
         combined = torch.cat((lstm_out[:, -1, :], rnn_out[:, -1, :]), dim=1)
-        features = self.fc1(combined)
-        features = self.relu(features)
-        return features
+        return self.relu(self.fc1(combined))
 
 class KELM:
     def __init__(self, C=1, gamma=0.1):
-        self.C = C
-        self.gamma = gamma
-        self.beta = None
-        self.X_train = None
-
-    def _rbf_kernel(self, X, Y):
+        self.C, self.gamma = C, gamma
+        self.beta, self.X_train = None, None
+    
+    def _rbf(self, X, Y):
         X_norm = np.sum(X ** 2, axis=-1).reshape(-1, 1)
         Y_norm = np.sum(Y ** 2, axis=-1).reshape(1, -1)
-        dist = X_norm + Y_norm - 2 * np.dot(X, Y.T)
-        return np.exp(-self.gamma * dist)
+        return np.exp(-self.gamma * (X_norm + Y_norm - 2 * np.dot(X, Y.T)))
 
-    def predict(self, X):
-        Omega_test = self._rbf_kernel(X, self.X_train)
-        outputs = np.dot(Omega_test, self.beta)
-        return np.argmax(outputs, axis=1)
-
-    # NEW: Calculate Probability/Confidence
     def predict_proba(self, X):
-        Omega_test = self._rbf_kernel(X, self.X_train)
-        outputs = np.dot(Omega_test, self.beta)
-        # Apply Softmax to get probabilities (0.0 to 1.0)
-        exp_scores = np.exp(outputs - np.max(outputs, axis=1, keepdims=True))
-        probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
-        return probs
+        out = np.dot(self._rbf(X, self.X_train), self.beta)
+        exp = np.exp(out - np.max(out, axis=1, keepdims=True))
+        return exp / np.sum(exp, axis=1, keepdims=True)
 
-# ==========================================
-# 2. LOAD MODELS
-# ==========================================
-BASE_DIR = "models"
-MODEL_PTH = f"{BASE_DIR}/ecu_ensemble_model.pth"
-KELM_PKL = f"{BASE_DIR}/kelm_final.pkl"
-SCALER_PKL = f"{BASE_DIR}/feature_scaler.pkl"
-
-device = torch.device("cpu")
-
-print("⏳ Loading Hybrid AI System...")
+# ================= LOAD ASSETS =================
+print("⏳ Loading Network Security AI...")
 try:
-    # 1. Load Feature Extractor
-    # Note: Use 104 if your previous error log said 104, otherwise 107.
-    # Based on your last error, it was 104.
+    # Based on your logs, the model expects 104 features
     INPUT_DIM = 104 
-    extractor = RobustEnsemble(INPUT_DIM, 32, 5).to(device)
-    extractor.load_state_dict(torch.load(MODEL_PTH, map_location=device))
-    extractor.eval()
+    dev = torch.device("cpu")
     
-    # 2. Load Classifier
-    kelm_classifier = joblib.load(KELM_PKL)
+    ext = RobustEnsemble(INPUT_DIM, 32, 5).to(dev)
+    ext.load_state_dict(torch.load("models/ecu_ensemble_model.pth", map_location=dev))
+    ext.eval()
     
-    # 3. Load Scaler
-    feature_scaler = joblib.load(SCALER_PKL)
-    
-    print("✅ Hybrid Model Loaded.")
+    kelm = joblib.load("models/kelm_final.pkl")
+    scaler = joblib.load("models/feature_scaler.pkl")
+    print("✅ Network AI Loaded (BiLSTM + KELM)")
 except Exception as e:
-    print(f"❌ Load Error: {e}")
-    exit()
+    print(f"❌ Error loading models: {e}")
+    sys.exit(1)
 
-# ==========================================
-# 3. INFERENCE LOGIC
-# ==========================================
-CLASS_NAMES = ["Normal", "DoS Attack", "ARP Spoofing", "Smurf Attack", "Port Scan"]
-
-def process_traffic(sequence):
-    # 1. Tensor
-    seq_tensor = torch.tensor(sequence, dtype=torch.float32).unsqueeze(0).to(device)
-    
-    # 2. Extract Features
-    with torch.no_grad():
-        deep_features = extractor(seq_tensor).cpu().numpy()
-        
-    # 3. Scale
-    scaled_features = feature_scaler.transform(deep_features)
-    
-    # 4. Classify with Confidence
-    probs = kelm_classifier.predict_proba(scaled_features)[0]
-    pred_idx = np.argmax(probs)
-    confidence = probs[pred_idx]
-    
-    return int(pred_idx), float(confidence)
-
-# ==========================================
-# 4. MQTT
-# ==========================================
+# ================= MQTT LOGIC =================
 BROKER = "127.0.0.1"
 TOPIC_INPUT = "ioht/network/data"
-TOPIC_RESULT = "ioht/network/result"
+TOPIC_OUTPUT_FUSION = "fusion/network_alert" # To Fusion Service
+TOPIC_OUTPUT_DASH = "ioht/network/result"    # To Dashboard
 
-def on_connect(client, userdata, flags, rc, properties):
+def on_connect(client, userdata, flags, rc, properties=None):
     print("🛡️ Security AI Online.")
     client.subscribe(TOPIC_INPUT)
 
 def on_message(client, userdata, msg):
     try:
-        payload = json.loads(msg.payload.decode())
-        features = payload['features']
+        pl = json.loads(msg.payload.decode())
+        raw = np.array(pl['features'])
         
-        # Inference
-        result_idx, conf = process_traffic(features)
-        result_name = CLASS_NAMES[result_idx]
+        # --- CRITICAL FIX IS HERE ---
+        # Reshape to (Batch=1, Time=1, Features=104)
+        # This makes it a 3D Tensor, which the LSTM expects.
+        t = torch.tensor(raw, dtype=torch.float32).view(1, 1, -1).to(dev)
         
-        # Console Log
-        true_label = payload.get('true_label', '?')
-        icon = "🟢" if result_idx == 0 else "🔴"
-        print(f"{icon} {result_name} ({conf:.1%}) [True: {true_label}]")
+        # 1. Feature Extraction (BiLSTM)
+        with torch.no_grad(): 
+            feat = ext(t).cpu().numpy()
         
-        # Publish Result (WITH CONFIDENCE KEY)
-        result_payload = {
-            "timestamp": payload['timestamp'],
-            "diagnosis": result_name,
-            "is_attack": (result_idx != 0),
-            "confidence": conf  # <--- FIXED: Added this key
+        # 2. Classification (KELM)
+        feat_scaled = scaler.transform(feat)
+        probs = kelm.predict_proba(feat_scaled)[0]
+        idx = np.argmax(probs)
+        
+        classes = ["Normal", "DoS", "ARP Spoofing", "Smurf", "Port Scan"]
+        pred = classes[idx]
+        conf = float(probs[idx])
+        
+        # Debug Output
+        true_lbl = pl.get("true_label", "?")
+        # Map integer true labels to text for cleaner logs
+        lbl_map = {0: "Normal", 1: "DoS", 2: "ARP", 3: "Smurf", 4: "Scan"}
+        truth_str = lbl_map.get(true_lbl, str(true_lbl))
+        
+        icon = "🟢" if pred == "Normal" else "🔴"
+        print(f"{icon} Det: {pred} ({conf:.1%}) | True: {truth_str}")
+        
+        # 3. Publish to Fusion Service (Matches FusionState keys)
+        alert = {
+            "timestamp": time.time(),
+            "predicted_class": pred,  # Fusion looks for 'predicted_class' or 'attack_class'
+            "confidence": conf,
+            "src": pl.get("device", "unknown_ip"),
+            "features": raw.tolist(),
+            "true_label": true_lbl
         }
-        client.publish(TOPIC_RESULT, json.dumps(result_payload))
+        client.publish(TOPIC_OUTPUT_FUSION, json.dumps(alert))
         
-    except Exception as e:
-        print(f"Error: {e}")
+        # 4. Publish to Dashboard (For Visuals)
+        client.publish(TOPIC_OUTPUT_DASH, json.dumps({
+            "diagnosis": pred,
+            "confidence": conf,
+            "timestamp": pl['timestamp']
+        }))
 
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Security_AI")
+    except Exception as e:
+        print(f"Error processing packet: {e}")
+
+# Start MQTT
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Net_AI")
 client.on_connect = on_connect
 client.on_message = on_message
-client.connect(BROKER, 1883, 60)
+client.connect(BROKER, 1883)
 client.loop_forever()

@@ -2,15 +2,15 @@
     {
         "id": "tab_master_control",
         "type": "tab",
-        "label": "Master Control Center",
+        "label": "IoHT Master Control",
         "disabled": false,
         "info": "Controls the Unified Pacemaker Simulation"
     },
     {
-        "id": "group_attacks",
+        "id": "group_network",
         "type": "group",
         "z": "tab_master_control",
-        "name": "Attack Simulation",
+        "name": "Network Layer Attacks",
         "style": {
             "stroke": "#ff0000",
             "fill": "#ffcccc",
@@ -22,10 +22,32 @@
             "inject_arp",
             "inject_scan"
         ],
-        "x": 114,
+        "x": 134,
         "y": 179,
         "w": 192,
         "h": 242
+    },
+    {
+        "id": "group_physical",
+        "type": "group",
+        "z": "tab_master_control",
+        "name": "Physical Device Attacks",
+        "style": {
+            "stroke": "#ff9900",
+            "fill": "#ffedcc",
+            "label": true
+        },
+        "nodes": [
+            "inject_spoof",
+            "inject_injection",
+            "inject_replay",
+            "inject_ratetamper",
+            "inject_flatline"
+        ],
+        "x": 374,
+        "y": 179,
+        "w": 192,
+        "h": 302
     },
     {
         "id": "inject_normal",
@@ -44,7 +66,7 @@
         "topic": "",
         "payload": "Normal",
         "payloadType": "str",
-        "x": 210,
+        "x": 350,
         "y": 100,
         "wires": [
             [
@@ -56,7 +78,7 @@
         "id": "inject_dos",
         "type": "inject",
         "z": "tab_master_control",
-        "g": "group_attacks",
+        "g": "group_network",
         "name": "🔥 DoS Attack",
         "props": [
             {
@@ -70,7 +92,7 @@
         "topic": "",
         "payload": "DoS",
         "payloadType": "str",
-        "x": 210,
+        "x": 230,
         "y": 220,
         "wires": [
             [
@@ -82,7 +104,7 @@
         "id": "inject_smurf",
         "type": "inject",
         "z": "tab_master_control",
-        "g": "group_attacks",
+        "g": "group_network",
         "name": "🌊 Smurf Attack",
         "props": [
             {
@@ -96,7 +118,7 @@
         "topic": "",
         "payload": "Smurf",
         "payloadType": "str",
-        "x": 210,
+        "x": 230,
         "y": 280,
         "wires": [
             [
@@ -108,7 +130,7 @@
         "id": "inject_arp",
         "type": "inject",
         "z": "tab_master_control",
-        "g": "group_attacks",
+        "g": "group_network",
         "name": "🕵️ ARP Spoof",
         "props": [
             {
@@ -122,7 +144,7 @@
         "topic": "",
         "payload": "ARP",
         "payloadType": "str",
-        "x": 210,
+        "x": 230,
         "y": 340,
         "wires": [
             [
@@ -134,7 +156,7 @@
         "id": "inject_scan",
         "type": "inject",
         "z": "tab_master_control",
-        "g": "group_attacks",
+        "g": "group_network",
         "name": "📡 Port Scan",
         "props": [
             {
@@ -148,8 +170,138 @@
         "topic": "",
         "payload": "Scan",
         "payloadType": "str",
-        "x": 210,
+        "x": 230,
         "y": 400,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_spoof",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_physical",
+        "name": "☠️ Spoofing",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Spoofing",
+        "payloadType": "str",
+        "x": 470,
+        "y": 220,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_injection",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_physical",
+        "name": "💉 Injection",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Injection",
+        "payloadType": "str",
+        "x": 470,
+        "y": 280,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_replay",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_physical",
+        "name": "🔄 Replay",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Replay",
+        "payloadType": "str",
+        "x": 470,
+        "y": 340,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_ratetamper",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_physical",
+        "name": "⚡ Rate Tamper",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "RateTamper",
+        "payloadType": "str",
+        "x": 470,
+        "y": 400,
+        "wires": [
+            [
+                "mqtt_master_out"
+            ]
+        ]
+    },
+    {
+        "id": "inject_flatline",
+        "type": "inject",
+        "z": "tab_master_control",
+        "g": "group_physical",
+        "name": "📉 Flatline",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Flatline",
+        "payloadType": "str",
+        "x": 470,
+        "y": 460,
         "wires": [
             [
                 "mqtt_master_out"
@@ -170,16 +322,16 @@
         "correl": "",
         "expiry": "",
         "broker": "broker_local",
-        "x": 510,
+        "x": 750,
         "y": 250,
         "wires": []
     },
     {
-        "id": "mqtt_ecg_in",
+        "id": "mqtt_ecg_alert",
         "type": "mqtt in",
         "z": "tab_master_control",
-        "name": "Monitor ECG",
-        "topic": "ioht/ecg",
+        "name": "Monitor ECG Alerts",
+        "topic": "fusion/ecg_alert",
         "qos": "0",
         "datatype": "json",
         "broker": "broker_local",
@@ -187,29 +339,67 @@
         "rap": true,
         "rh": 0,
         "inputs": 0,
-        "x": 190,
-        "y": 520,
+        "x": 170,
+        "y": 560,
         "wires": [
             [
-                "debug_ecg_status"
+                "debug_ecg_alert"
             ]
         ]
     },
     {
-        "id": "debug_ecg_status",
+        "id": "debug_ecg_alert",
         "type": "debug",
         "z": "tab_master_control",
-        "name": "Current Pacemaker Status",
+        "name": "ECG AI",
         "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
-        "complete": "payload.status",
+        "complete": "payload.signal_status",
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 440,
-        "y": 520,
+        "x": 400,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "mqtt_net_result",
+        "type": "mqtt in",
+        "z": "tab_master_control",
+        "name": "Monitor Network AI",
+        "topic": "ioht/network/result",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "broker_local",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 170,
+        "y": 620,
+        "wires": [
+            [
+                "debug_net_result"
+            ]
+        ]
+    },
+    {
+        "id": "debug_net_result",
+        "type": "debug",
+        "z": "tab_master_control",
+        "name": "Network AI",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload.diagnosis",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 410,
+        "y": 620,
         "wires": []
     },
     {
