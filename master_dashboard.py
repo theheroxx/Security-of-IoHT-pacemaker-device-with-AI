@@ -85,7 +85,8 @@ st.sidebar.header("🕹️ Scenario Injector")
 ATTACK_OPTIONS = [
     "Normal", 
     "DoS", "Smurf", "ARP", "Scan",       # Network Layer
-    "Injection", "Replay", "RateTamper", "Flatline", "Spoofing" # Physical Layer
+    "Injection", "Replay", "RateTamper" # Physical Layer
+   # "Flatline", "Spoofing" 
 ]
 
 selected_attack = st.sidebar.selectbox("Select Scenario", ATTACK_OPTIONS, index=0)
@@ -171,6 +172,9 @@ while not st.session_state.stop_update:
 
         # 1. ECG Signal (Handles both Single Points and Lists/Segments)
         if topic == "ioht/ecg":
+            if 'attack_mode' in data:
+                st.session_state.current_mode = data['attack_mode']
+
             # Check for different possible keys from different simulator versions
             segment = data.get('ecg_segment') or data.get('ecg')
             val = data.get('ecg_value')
@@ -215,10 +219,12 @@ while not st.session_state.stop_update:
         elif topic in ["fusion/ecg_alert", "ioht/alert"]:
             alert_type = data.get('signal_status', 'Anomaly')
             loss = data.get('loss', 0.0)
+
             st.session_state.ecg_msg = f"⚠️ {alert_type} (Loss: {loss:.2f})"
-            st.session_state.alert_state = "Analyzing" # Yellow alert
+            st.session_state.alert_state = "Analyzing"
             st.session_state.last_msg_time = time.time()
             st.session_state.events.append(f"{ts} [PHY] {alert_type}")
+
 
         # 5. Fusion Decision - Final Authority
         elif topic == "fusion/final_decision":
@@ -241,15 +247,19 @@ while not st.session_state.stop_update:
             st.session_state.pacemaker_battery = float(data.get('battery', 98.0))
         
         elif topic == "simulation/master_control":
-             st.session_state.current_mode = data if isinstance(data, str) else msg['payload'].decode()
+            #st.session_state.current_mode = data if isinstance(data, str) else msg['payload'].decode()
+            if isinstance(data, str):
+                st.session_state.current_mode = data
 
     # --- Watchdog (Auto Reset) ---
     if st.session_state.alert_state != "Secure":
         if time.time() - st.session_state.last_msg_time > 3.0:
-            st.session_state.alert_state = "Secure"
-            st.session_state.ecg_msg = "Normal Sinus Rhythm"
-            st.session_state.sec_msg = "System Monitoring..."
-            st.session_state.ai_diagnosis = "Normal"
+            if st.session_state.current_mode == "Normal":
+                st.session_state.alert_state = "Secure"
+                st.session_state.ecg_msg = "Normal Sinus Rhythm"
+                st.session_state.sec_msg = "System Monitoring..."
+                st.session_state.ai_diagnosis = "Normal"
+
 
     # --- Render UI ---
     current_time = time.time()
