@@ -1,0 +1,158 @@
+import time
+import json
+import numpy as np
+import paho.mqtt.client as mqtt
+from collections import deque
+
+# Try importing NeuroKit2
+try:
+    import neurokit2 as nk
+    print("✅ NeuroKit2 Library Found. Using advanced bio-simulation.")
+    USING_NK = True
+except ImportError:
+    print("⚠️ NeuroKit2 not found. Falling back to internal math.")
+    print("   (Run 'pip install neurokit2' for better visuals)")
+    USING_NK = False
+
+# ================= CONFIG =================
+BROKER = "127.0.0.1"
+TOPIC_ECG_OUT = "ioht/ecg"
+TOPIC_CTRL = "simulation/master_control"
+TOPIC_TELEMETRY = "pacemaker/control/telemetry"
+
+DEVICE_ID = "pacemaker_procedural"
+FS = 125       
+SEG = 10       
+current_attack = "Normal"
+
+valid_history_buffer = deque(maxlen=FS * 5)
+
+# ================= HYBRID HEART ENGINE =================
+class HeartEngine:
+    def __init__(self, fs):
+        self.fs = fs
+        self.buffer = deque()
+        self.phase_counter = 0.0
+        
+    def generate_nk_chunk(self, target_hr):
+        """Generates a chunk of ECG using NeuroKit2"""
+        # Generate 4 seconds of data at the target Heart Rate
+        # random_state=None ensures variability
+        # method="ecgsyn" creates realistic 12-lead style waves
+        ecg_signal = nk.ecg_simulate(duration=4, sampling_rate=self.fs, 
+                                     heart_rate=target_hr, method="ecgsyn", noise=0.01)
+        return ecg_signal.tolist()
+
+    def generate_math_beat(self, target_hr):
+        """Fallback Gaussian math if NeuroKit is missing"""
+        amplitude = np.random.normal(1.2, 0.05)
+        hr_varied = np.random.normal(target_hr, 3.0)
+        samples = int(self.fs * (60.0 / hr_varied))
+        t = np.linspace(0, 60.0/hr_varied, samples)
+        beat = np.zeros_like(t)
+        
+        p_loc = 0.2 + np.random.normal(0, 0.01)
+        beat += 0.15 * np.exp(-((t-p_loc)/0.03)**2)
+        beat -= 0.15 * np.exp(-((t-(0.3-0.02))/0.015)**2)
+        beat += amplitude * np.exp(-((t-0.3)/0.01)**2)
+        beat -= 0.30 * np.exp(-((t-(0.3+0.02))/0.02)**2)
+        beat += 0.35 * np.exp(-((t-0.45)/0.05)**2)
+        return beat.tolist()
+
+    def get_samples(self, n, attack_mode):
+        # 1. Fill buffer if low
+        while len(self.buffer) < n:
+            target_hr = 75
+            if attack_mode == "RateTamper": target_hr = 150 # Tachycardia
+            
+            if USING_NK:
+                # NeuroKit generates big chunks (better for continuity)
+                new_chunk = self.generate_nk_chunk(target_hr)
+                self.buffer.extend(new_chunk)
+            else:
+                # Math generates beat-by-beat
+                new_beat = self.generate_math_beat(target_hr)
+                self.buffer.extend(new_beat)
+            
+        # 2. Extract next chunk
+        chunk = []
+        for _ in range(n): chunk.append(self.buffer.popleft())
+        
+        # 3. Add extra organic noise (NeuroKit is sometimes too clean)
+        chunk = np.array(chunk)
+        wander = 0.05 * np.sin(2 * np.pi * 0.2 * time.time())
+        
+        return chunk + wander
+
+engine = HeartEngine(FS)
+
+# ================= ATTACK LOGIC =================
+def apply_attacks(seg, mode):
+    out = seg.copy()
+    
+    if mode == "Flatline":
+        return np.zeros_like(out)
+    
+    elif mode == "Injection":
+        if len(out) > 2:
+            idx = np.random.randint(0, len(out)-1)
+            out[idx] = 2.5 
+            out[idx+1] = -1.5
+    
+    elif mode == "Spoofing":
+        noise = np.random.normal(0, 0.4, len(out))
+        out = out + noise
+        
+    elif mode == "Replay":
+        if len(valid_history_buffer) > SEG:
+            start_idx = np.random.randint(0, len(valid_history_buffer) - SEG)
+            return np.array(list(valid_history_buffer))[start_idx : start_idx+SEG]
+            
+    return out
+
+# ================= MQTT =================
+def on_message(c, u, msg):
+    global current_attack
+    try: current_attack = msg.payload.decode()
+    except: pass
+
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Pacemaker_NeuroKit")
+client.on_message = on_message
+client.connect(BROKER, 1883)
+client.subscribe(TOPIC_CTRL)
+client.loop_start()
+
+# ================= MAIN LOOP =================
+print(f"💓 Pacemaker Active (NeuroKit: {USING_NK})...")
+
+try:
+    while True:
+        # Sync Check
+        if current_attack in ["DoS", "Smurf", "ARP", "Scan"]:
+            time.sleep(0.1)
+            continue
+
+        # Generate Signal
+        raw_seg = engine.get_samples(SEG, current_attack)
+        
+        if current_attack == "Normal":
+            valid_history_buffer.extend(raw_seg)
+
+        # Apply Attacks
+        final_seg = apply_attacks(raw_seg, current_attack)
+
+        # Publish
+        payload = {
+            "timestamp": time.time(),
+            "ecg_segment": final_seg.tolist(),
+            "mode": current_attack
+        }
+        client.publish(TOPIC_ECG_OUT, json.dumps(payload))
+        
+        hr_val = 150 if current_attack == "RateTamper" else 75
+        if current_attack == "Flatline": hr_val = 0
+        client.publish(TOPIC_TELEMETRY, json.dumps({"hr_est": hr_val, "battery": 98.2}))
+
+        time.sleep(SEG / FS)
+
+except KeyboardInterrupt: client.loop_stop()

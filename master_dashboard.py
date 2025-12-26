@@ -6,6 +6,7 @@ import queue
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from log_manager import logger  
 
 # ==========================================
 # 1. PAGE CONFIGURATION
@@ -122,14 +123,14 @@ with st.sidebar:
     ]
     
     attack_icons = {
-        "Normal": ":material/check_circle:",
-        "DoS": ":material/crisis_alert:", 
-        "Smurf": ":material/crisis_alert:",
-        "ARP": ":material/warning:", 
-        "Scan": ":material/warning:",
-        "Injection": ":material/bug_report:", 
-        "Replay": ":material/bug_report:", 
-        "RateTamper": ":material/bug_report:"
+        "Normal": "",
+        "DoS": "", 
+        "Smurf": "",
+        "ARP": "", 
+        "Scan": "",
+        "Injection": "", 
+        "Replay": "", 
+        "RateTamper": ""
     }
     
     selected_attack = st.selectbox(
@@ -312,6 +313,7 @@ with tab2:
         st.metric("False Positive", "< 0.1%", help="Rate of incorrect alerts")
 
 # TAB 3: EVENT LOG & NETWORK TRAFFIC STREAM
+# TAB 3: EVENT LOG & NETWORK TRAFFIC STREAM
 with tab3:
     log_col, traffic_col = st.columns(2)  # Split into two columns: logs on left, traffic stream on right
     
@@ -320,11 +322,22 @@ with tab3:
         st.caption("Chronological log of system events and alerts")
         
         if st.session_state.events:
-            # Event statistics
+            # --- Event Statistics (ROBUST FIX) ---
             col1, col2, col3 = st.columns(3)
-            normal_count = len([e for e in st.session_state.events if "Normal" in e])
-            warning_count = len([e for e in st.session_state.events if "Warning" in e or "Anomaly" in e])
-            critical_count = len([e for e in st.session_state.events if "ATTACK" in e])
+            
+            # Keywords to classify events (Case Insensitive)
+            critical_keywords = ["attack", "critical", "dos", "smurf", "arp", "injection", "replay", "flatline", "tamper", "spoof", "alert"]
+            warning_keywords = ["anomaly", "warning", "analyzing", "scan"]
+            normal_keywords = ["normal", "secure", "resetting"]
+
+            # 1. Calculate Critical (High Priority)
+            critical_count = len([e for e in st.session_state.events if any(k in e.lower() for k in critical_keywords)])
+            
+            # 2. Calculate Warnings (Exclude things that are already Critical)
+            warning_count = len([e for e in st.session_state.events if any(k in e.lower() for k in warning_keywords) and not any(k in e.lower() for k in critical_keywords)])
+            
+            # 3. Calculate Normal
+            normal_count = len([e for e in st.session_state.events if any(k in e.lower() for k in normal_keywords)])
             
             with col1:
                 st.metric(":material/check_circle: Normal", normal_count)
@@ -335,15 +348,21 @@ with tab3:
             
             st.divider()
             
-            # Recent events
+            # --- Recent Events List ---
             st.markdown("#### Recent Events (Last 20)")
             for event in reversed(st.session_state.events[-20:]):
-                if "ATTACK" in event or "FUSION" in event:
+                event_lower = event.lower()
+                
+                # Check Critical first
+                if any(k in event_lower for k in critical_keywords):
                     st.error(event, icon=":material/crisis_alert:")
-                elif "Anomaly" in event or "Warning" in event:
+                # Then Warning
+                elif any(k in event_lower for k in warning_keywords):
                     st.warning(event, icon=":material/warning:")
-                elif "Normal" in event:
+                # Then Normal
+                elif any(k in event_lower for k in normal_keywords):
                     st.success(event, icon=":material/check_circle:")
+                # Default info
                 else:
                     st.info(event, icon=":material/info:")
         else:
@@ -355,7 +374,9 @@ with tab3:
         
         if st.session_state.network_traffic:
             df = pd.DataFrame(st.session_state.network_traffic)
+            # Sort to show newest first
             df = df.sort_values('timestamp', ascending=False).head(50)
+            
             st.dataframe(
                 df,
                 use_container_width=True,
@@ -363,15 +384,13 @@ with tab3:
                     "timestamp": st.column_config.TextColumn("Time"),
                     "true_label": st.column_config.TextColumn("True Label"),
                     "prediction": st.column_config.TextColumn("Prediction"),
-                    "confidence": st.column_config.NumberColumn("Confidence", format="%.1%%")
+                    # Format confidence as percentage (e.g. 0.95 -> 95.0%)
+                    "confidence": st.column_config.NumberColumn("Confidence", format="%.1f%%")
                 },
                 hide_index=True
             )
         else:
             st.info(":material/pending: Awaiting network traffic...")
-
-st.divider()
-
 # ==========================================
 # 8. FUSION ENGINE STATUS
 # ==========================================
@@ -398,7 +417,7 @@ with fusion_col2:
 
 with fusion_col3:
     with st.container(border=True):
-        st.markdown("##### :material/psychology: AI Decision")
+        st.markdown("##### :material/psychology: Fusion")
         if st.session_state.ai_diagnosis != "Normal" and st.session_state.ai_diagnosis != "Waiting...":
             st.warning(f"Threat: {st.session_state.ai_diagnosis}")
         else:
@@ -416,6 +435,7 @@ MAX_TRAFFIC_ENTRIES = 50     # Limit network traffic stream size
 updated = False
 messages_processed = 0
 
+# Process all queued messages
 while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messages per refresh
     msg = gui_queue.get()
     topic = msg['topic']
@@ -448,7 +468,7 @@ while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messa
         mapping = {0: "Normal", 1: "DoS", 2: "ARP", 3: "Smurf", 4: "Scan"}
         truth_label = mapping.get(label, str(label))
         
-        # Add to network traffic stream
+        # Add to network traffic stream (Session State)
         st.session_state.network_traffic.append({
             'timestamp': ts_float,
             'true_label': truth_label,
@@ -467,7 +487,7 @@ while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messa
         conf = data.get("confidence", 0.0)
         st.session_state.ai_diagnosis = prediction
         
-        # Add to network traffic stream
+        # Add to network traffic stream (Session State)
         st.session_state.network_traffic.append({
             'timestamp': ts_float,
             'true_label': None,
@@ -475,11 +495,22 @@ while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messa
             'confidence': conf
         })
         
+        # --- LOGGING: SAVE TRAFFIC TO CSV ---
+        # We use the current_mode as a proxy for truth since packets are async
+        logger.log_traffic(
+            true_label=st.session_state.current_mode, 
+            prediction=prediction, 
+            confidence=conf
+        )
+
         if prediction != "Normal":
             st.session_state.alert_state = "Attack Detected"
             st.session_state.sec_msg = f"🚨 {prediction} ({conf:.1%})"
             st.session_state.last_msg_time = time.time()
             st.session_state.events.append(f"{ts} [NET] {prediction}")
+            
+            # --- LOGGING: SAVE EVENT ---
+            logger.log_event("Cyber Attack", "Network AI", f"Detected {prediction} ({conf:.1%})", "High")
         else:
             st.session_state.sec_msg = "Traffic Normal"
     
@@ -492,6 +523,9 @@ while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messa
         st.session_state.alert_state = "Analyzing"
         st.session_state.last_msg_time = time.time()
         st.session_state.events.append(f"{ts} [PHY] {alert_type}")
+        
+        # --- LOGGING: SAVE EVENT ---
+        logger.log_event("Physical Anomaly", "ECG AI", f"{alert_type} (Loss: {loss:.2f})", "High")
     
     # 5. Fusion Decision
     elif topic == "fusion/final_decision":
@@ -505,6 +539,9 @@ while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messa
             last_event = st.session_state.events[-1] if st.session_state.events else ""
             if status not in last_event:
                 st.session_state.events.append(f"{ts} [FUSION] {status}")
+                
+            # --- LOGGING: SAVE EVENT ---
+            logger.log_event("Fusion Decision", "Fusion Engine", status, severity)
         
         if status == "Normal":
             st.session_state.ai_diagnosis = "Normal"
