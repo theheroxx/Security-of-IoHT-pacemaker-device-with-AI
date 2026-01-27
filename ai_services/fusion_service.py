@@ -33,48 +33,25 @@ DECAY_RATE = 0.1            # Confidence decay per second
 
 # Risk Mapping
 SEVERITY_MAP = {
-    # Physical - Critical
+    # Physical
     "Critical Signal Loss": "CRITICAL",
-    "Flatline": "CRITICAL",
+    "Critical Signal Loss (Flatline)": "CRITICAL",
     "Voltage Injection": "CRITICAL",
-    "Spike Injection": "CRITICAL",
-    "Pacing Compromise": "CRITICAL",
+    "Replay Attack": "CRITICAL",
     
-    # Physical - High
     "Rate Tampering": "HIGH",
-    "Bradycardia": "HIGH",
-    "Tachycardia": "HIGH",
-    "Asystole": "HIGH",
+    "Rate Tampering (Tachycardia)": "HIGH",
+    "Rate Tampering (Bradycardia)": "HIGH",
+    "Spoofing (High Noise)": "HIGH",
+    "Physiological Anomaly": "MEDIUM",
+    "Parameter Corruption": "MEDIUM",
     
-    # Physical - Medium
-    "Morphology Anomaly": "MEDIUM",
-    "Signal Interference": "MEDIUM",
-    "Noise Artifact": "MEDIUM",
-    "Arrhythmia": "MEDIUM",
-    
-    # Network - Critical
-    "ARP Spoofing": "CRITICAL",
-    "Man-in-the-Middle": "CRITICAL",
-    "Command Injection": "CRITICAL",
-    
-    # Network - High
+    # Network
     "DoS Attack": "HIGH",
     "Smurf Attack": "HIGH",
-    "DDoS": "HIGH",
-    "Flooding": "HIGH",
-    
-    # Network - Medium
-    "Port Scan": "MEDIUM",
-    "Reconnaissance": "MEDIUM",
-    "Packet Injection": "MEDIUM",
-    
-    # Network - Low
-    "Suspicious Activity": "LOW",
-    "Anomalous Traffic": "LOW",
-    
-    # Default
-    "Normal": "LOW",
-    "Unknown": "LOW"
+    "ARP Spoofing": "CRITICAL",
+    "Port Scan": "LOW",
+    "Normal": "LOW"
 }
 
 # ==========================================
@@ -206,6 +183,41 @@ def calculate_temporal_correlation(ecg_time, net_time):
     else:
         return 0.1  # Very weak correlation
 
+def get_severity(label):
+    if not label or label == "Normal":
+        return "LOW"
+    
+    # تمیز کردن label
+    clean_label = label.strip()
+    
+    # 1. Exact match
+    if clean_label in SEVERITY_MAP: 
+        return SEVERITY_MAP[clean_label]
+    
+    # 2. Partial match (بدون حساسیت به حروف)
+    for key, val in SEVERITY_MAP.items():
+        if key.lower() in clean_label.lower():
+            return val
+    
+    # 3. Check for keywords
+    critical_keywords = ["Critical", "Flatline", "Injection", "Replay"]
+    high_keywords = ["Tampering", "Tachycardia", "Bradycardia", "Spoofing"]
+    medium_keywords = ["Anomaly", "Corruption"]
+    
+    for keyword in critical_keywords:
+        if keyword.lower() in clean_label.lower():
+            return "CRITICAL"
+    
+    for keyword in high_keywords:
+        if keyword.lower() in clean_label.lower():
+            return "HIGH"
+    
+    for keyword in medium_keywords:
+        if keyword.lower() in clean_label.lower():
+            return "MEDIUM"
+    
+    return "LOW"
+
 def match_attack_scenario(ecg_event, net_event):
     """Intelligent scenario matching with confidence scoring"""
     if not ecg_event and not net_event:
@@ -267,7 +279,7 @@ def calculate_risk_score(ecg_event, net_event, scenario=None):
     # Base score from ECG severity
     if ecg_event:
         ecg_severity = ecg_event.get('signal_status', 'Normal')
-        severity_level = SEVERITY_MAP.get(ecg_severity, 'LOW')
+        severity_level = get_severity(ecg_severity)
         if severity_level == 'CRITICAL':
             base_score += 0.8
         elif severity_level == 'HIGH':
@@ -278,7 +290,7 @@ def calculate_risk_score(ecg_event, net_event, scenario=None):
     # Base score from network severity
     if net_event:
         net_severity = net_event.get('attack_class', 'Normal')
-        severity_level = SEVERITY_MAP.get(net_severity, 'LOW')
+        severity_level = get_severity(net_severity)
         if severity_level == 'CRITICAL':
             base_score += 0.7
         elif severity_level == 'HIGH':

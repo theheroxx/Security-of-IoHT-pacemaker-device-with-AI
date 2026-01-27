@@ -2,6 +2,7 @@ import streamlit as st
 import paho.mqtt.client as mqtt
 import json
 import time
+from streamlit_elements import elements, dashboard, mui, html
 import queue
 import numpy as np
 import pandas as pd
@@ -326,7 +327,11 @@ with tab3:
             col1, col2, col3 = st.columns(3)
             
             # Keywords to classify events (Case Insensitive)
-            critical_keywords = ["attack", "critical", "dos", "smurf", "arp", "injection", "replay", "flatline", "tamper", "spoof", "alert"]
+            # در بخش Event Timeline، بهبود طبقه‌بندی
+            critical_keywords = ["attack", "critical", "dos", "smurf", "arp", "injection", 
+                     "replay", "flatline", "tamper", "spoof", "alert", "voltage", 
+                     "signal loss", "bradycardia", "tachycardia"]
+            
             warning_keywords = ["anomaly", "warning", "analyzing", "scan"]
             normal_keywords = ["normal", "secure", "resetting"]
 
@@ -350,21 +355,40 @@ with tab3:
             
             # --- Recent Events List ---
             st.markdown("#### Recent Events (Last 20)")
-            for event in reversed(st.session_state.events[-20:]):
-                event_lower = event.lower()
-                
-                # Check Critical first
-                if any(k in event_lower for k in critical_keywords):
-                    st.error(event, icon=":material/crisis_alert:")
-                # Then Warning
-                elif any(k in event_lower for k in warning_keywords):
-                    st.warning(event, icon=":material/warning:")
-                # Then Normal
-                elif any(k in event_lower for k in normal_keywords):
-                    st.success(event, icon=":material/check_circle:")
-                # Default info
-                else:
-                    st.info(event, icon=":material/info:")
+            st.markdown("#### Recent Events (Last 20)")
+        
+            with elements("events_list"):
+                for event in reversed(st.session_state.events[-20:]):
+                    event_lower = event.lower()
+                    
+                    if "[normal]" in event_lower or "normal sinus" in event_lower:
+                        mui.Alert(
+                            event,
+                            severity="success",
+                            sx={"mb": 1},
+                            icon=mui.icon.CheckCircle
+                        )
+                    elif "critical" in event_lower or "flatline" in event_lower:
+                        mui.Alert(
+                            event,
+                            severity="error",
+                            sx={"mb": 1},
+                            icon=mui.icon.Error
+                        )
+                    elif "anomaly" in event_lower or "warning" in event_lower:
+                        mui.Alert(
+                            event,
+                            severity="warning",
+                            sx={"mb": 1},
+                            icon=mui.icon.Warning
+                        )
+                    else:
+                        mui.Alert(
+                            event,
+                            severity="info",
+                            sx={"mb": 1},
+                            icon=mui.icon.Info
+                        )
         else:
             st.info(":material/event_note: No events logged yet. System monitoring active.")
     
@@ -518,35 +542,53 @@ while not gui_queue.empty() and messages_processed < 50:  # Process max 50 messa
     elif topic in ["fusion/ecg_alert", "ioht/alert"]:
         alert_type = data.get('signal_status', 'Anomaly')
         loss = data.get('loss', 0.0)
+        severity = data.get('severity', 'MEDIUM')  # اضافه کردن severity
         
-        st.session_state.ecg_msg = f"⚠️ {alert_type} (Loss: {loss:.2f})"
-        st.session_state.alert_state = "Analyzing"
+        # تعیین alert_state بر اساس severity
+        if "Critical" in alert_type or severity in ["CRITICAL", "HIGH"]:
+            st.session_state.alert_state = "Attack Detected"
+            emoji = "🚨"
+        else:
+            st.session_state.alert_state = "Analyzing"
+            emoji = "⚠️"
+        
+        st.session_state.ecg_msg = f"{emoji} {alert_type} (Loss: {loss:.2f})"
         st.session_state.last_msg_time = time.time()
-        st.session_state.events.append(f"{ts} [PHY] {alert_type}")
+        st.session_state.events.append(f"{ts} [PHY] {alert_type} - Severity: {severity}")
         
         # --- LOGGING: SAVE EVENT ---
         logger.log_event("Physical Anomaly", "ECG AI", f"{alert_type} (Loss: {loss:.2f})", "High")
     
     # 5. Fusion Decision
     elif topic == "fusion/final_decision":
-        status = data.get('status', 'Normal')
-        severity = data.get('severity', 'Low')
-        net_cause = data.get('network_attack', 'Normal')
-        phy_cause = data.get('ecg_issue', 'Normal')
+        # استفاده از فیلدهای صحیح fusion engine
+        risk_level = data.get('risk_level', 'NORMAL')
+        risk_score = data.get('risk_score', 0.0)
+        ecg_anomaly = data.get('ecg_anomaly', 'Normal')
+        network_attack = data.get('network_attack', 'Normal')
         
-        if status != "Normal":
+        # بروزرسانی وضعیت بر اساس risk_level
+        if risk_level in ["CRITICAL", "HIGH"]:
             st.session_state.alert_state = "Attack Detected"
-            last_event = st.session_state.events[-1] if st.session_state.events else ""
-            if status not in last_event:
-                st.session_state.events.append(f"{ts} [FUSION] {status}")
-                
-            # --- LOGGING: SAVE EVENT ---
-            logger.log_event("Fusion Decision", "Fusion Engine", status, severity)
-        
-        if status == "Normal":
-            st.session_state.ai_diagnosis = "Normal"
+        elif risk_level == "MEDIUM":
+            st.session_state.alert_state = "Analyzing"
         else:
-            st.session_state.ai_diagnosis = f"{status} (Net: {net_cause}, Phys: {phy_cause})"
+            st.session_state.alert_state = "Secure"
+        
+        # بروزرسانی پیام‌ها
+        if ecg_anomaly != "Normal":
+            st.session_state.ecg_msg = f"🚨 {ecg_anomaly}"
+        
+        if network_attack != "Normal":
+            st.session_state.sec_msg = f"🚨 {network_attack}"
+        
+        # بروزرسانی AI diagnosis
+        if risk_level != "NORMAL":
+            st.session_state.ai_diagnosis = f"{risk_level}: {ecg_anomaly}/{network_attack}"
+            if risk_level not in str(st.session_state.events[-1] if st.session_state.events else ""):
+                st.session_state.events.append(f"{ts} [FUSION] {risk_level}: {ecg_anomaly}/{network_attack}")
+        else:
+            st.session_state.ai_diagnosis = "Normal"
     
     # 6. Telemetry & Control Sync
     elif topic == "pacemaker/control/telemetry":

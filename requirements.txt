@@ -1,0 +1,25 @@
+# --- Core Data Science ---
+numpy
+pandas
+scipy
+
+# --- Machine Learning & AI ---
+torch
+scikit-learn
+joblib
+imbalanced-learn
+
+# --- Dashboard & Visualization ---
+streamlit
+streamlit_elements
+matplotlib
+seaborn
+
+# --- IoT & Communication ---
+# Note: Code uses CallbackAPIVersion.VERSION2, so we need v2.0+
+paho-mqtt>=2.0.0  
+
+# --- Biomedical & Simulation ---
+neurokit2
+wfdb
+openpyxl
