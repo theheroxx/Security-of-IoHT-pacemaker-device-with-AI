@@ -1,9 +1,10 @@
+import os
 import time, json, numpy as np
 import paho.mqtt.client as mqtt
 from collections import deque
 
 # ================= CONFIG =================
-BROKER = "127.0.0.1"
+BROKER = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
 TOPIC_ECG_OUT = "ioht/ecg"
 TOPIC_CTRL = "simulation/master_control"
 TOPIC_TELEMETRY = "pacemaker/control/telemetry"
@@ -120,7 +121,7 @@ def on_message(c, u, msg):
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Pacemaker_Procedural")
 client.on_message = on_message
-client.connect(BROKER, 1883)
+client.connect(BROKER, int(os.getenv("MQTT_BROKER_PORT", "1883")))
 client.subscribe(TOPIC_CTRL)
 client.loop_start()
 

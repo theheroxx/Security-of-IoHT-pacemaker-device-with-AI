@@ -5,12 +5,13 @@ import numpy as np
 from collections import deque
 from datetime import datetime
 import hashlib
+import os
 
 # ==========================================
 # CONFIGURATION
 # ==========================================
-BROKER = "127.0.0.1"
-PORT = 1883
+BROKER = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
+PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
 
 # Inputs (Must match AI outputs)
 TOPIC_ECG_ALERT = "fusion/ecg_alert"
