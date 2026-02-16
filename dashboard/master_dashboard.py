@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import paho.mqtt.client as mqtt
 import json
@@ -85,7 +86,7 @@ def start_mqtt():
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Master_Dashboard_Final")
     client.on_message = on_message
     try:
-        client.connect("127.0.0.1", 1883, 60)
+        client.connect(os.getenv("MQTT_BROKER_HOST", "127.0.0.1"), int(os.getenv("MQTT_BROKER_PORT", "1883")), 60)
         client.subscribe([
             ("ioht/ecg", 0),
             ("ioht/network/data", 0),

@@ -1,3 +1,12 @@
+# Python cache / bytecode
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+
+# Local environments
+.venv/
+venv/
+
+# Runtime logs/artifacts
+storage/logs/*
+logs/events_*.csv
+logs/network_traffic_*.csv

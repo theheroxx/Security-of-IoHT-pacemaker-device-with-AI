@@ -1,8 +1,9 @@
+import os
 import time, json, numpy as np
 import paho.mqtt.client as mqtt
 from collections import deque
 
-BROKER = "127.0.0.1"
+BROKER = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
 TOPIC_DATA = "ioht/ecg"
 TOPIC_CONTROL = "simulation/master_control"
 
@@ -101,7 +102,7 @@ def on_message(c, u, msg):
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Network_Gen_Procedural")
 client.on_message = on_message
-client.connect(BROKER, 1883)
+client.connect(BROKER, int(os.getenv("MQTT_BROKER_PORT", "1883")))
 client.subscribe(TOPIC_CONTROL)
 client.loop_start()
 

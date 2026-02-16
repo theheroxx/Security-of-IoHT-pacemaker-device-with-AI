@@ -1,1 +1,50 @@
-<img width="1408" height="768" alt="Diagram" src="https://github.com/user-attachments/assets/5fdf1843-79e9-4533-9b85-eb4252fb5967" />
+# Security of IoHT Pacemaker Device with AI
+
+This repository simulates hybrid cyber-physical attacks on an IoHT pacemaker workflow and uses AI services plus a Streamlit dashboard for detection and monitoring.
+
+## Current runtime components
+
+- `attacks_ecg_level/pacemaker_direct_sim.py` (ECG generator + physical attack modes)
+- `attacks_network_level/network_attack_generator.py` (network packet simulator)
+- `ai_services/ecg_ai_service.py` (ECG anomaly detector)
+- `ai_services/network_security_ai.py` (network attack classifier)
+- `ai_services/fusion_service.py` (decision fusion engine)
+- `dashboard/master_dashboard.py` (frontend)
+
+## Dockerized orchestration (new)
+
+A Docker Compose setup has been added under `infra/docker/docker-compose.yml`.
+
+### Quick start
+
+```bash
+cp .env.example .env
+make up
+```
+
+Open dashboard at:
+
+- http://localhost:8501
+
+### Stop
+
+```bash
+make down
+```
+
+## New scaffolding folders
+
+- `apps/frontend/dashboard/` – frontend container definition
+- `apps/backend/*` – backend service container definitions
+- `apps/shared/ioht_common/` – shared topic constants scaffold
+- `infra/docker/` – compose and broker config
+- `infra/scripts/` – helper scripts
+- `storage/logs/` – runtime log volume target
+
+## Environment variables
+
+Services now support:
+
+- `MQTT_BROKER_HOST` (default `127.0.0.1`)
+- `MQTT_BROKER_PORT` (default `1883`)
+- `LOG_DIR` (default `logs`, used by `logs/log_manager.py`)

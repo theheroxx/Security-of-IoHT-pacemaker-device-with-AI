@@ -1,3 +1,4 @@
+import os
 import torch, time, json, sys, numpy as np
 import paho.mqtt.client as mqtt
 from collections import deque, Counter
@@ -5,14 +6,14 @@ import hashlib
 
 # ================= CONFIG =================
 MODEL_PATH = "models/ecg_bilstm_autoencoder.pth"
-BROKER = "127.0.0.1"
+BROKER = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
 TOPIC_INPUT = ["ioht/ecg", "pacemaker/direct_ecg_stream"]
 TOPIC_ALERT = "fusion/ecg_alert"
 TARGET_FS = 125 
 SEQ_LEN = 140
 device = torch.device("cpu")
 buffer = deque(maxlen=SEQ_LEN)
-PORT=1883
+PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
 # Logic State
 CALIBRATION_MODE = True
 calib_losses = []

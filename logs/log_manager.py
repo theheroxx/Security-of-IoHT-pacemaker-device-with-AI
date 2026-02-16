@@ -4,16 +4,17 @@ from datetime import datetime
 
 class LogManager:
     def __init__(self):
-        # Create 'logs' folder if it doesn't exist
-        if not os.path.exists('logs'):
-            os.makedirs('logs')
+        self.log_dir = os.getenv('LOG_DIR', 'logs')
+
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
             
         # 1. Event Log File (Alerts, Diagnosis)
-        self.event_file = f"logs/events_{datetime.now().strftime('%Y%m%d')}.csv"
+        self.event_file = os.path.join(self.log_dir, f"events_{datetime.now().strftime('%Y%m%d')}.csv")
         self._init_csv(self.event_file, ["Timestamp", "Type", "Source", "Message", "Severity"])
 
         # 2. Network Traffic File (Packet Stream)
-        self.traffic_file = f"logs/network_traffic_{datetime.now().strftime('%Y%m%d')}.csv"
+        self.traffic_file = os.path.join(self.log_dir, f"network_traffic_{datetime.now().strftime('%Y%m%d')}.csv")
         self._init_csv(self.traffic_file, ["Timestamp", "True_Label", "AI_Prediction", "Confidence"])
 
     def _init_csv(self, filepath, headers):

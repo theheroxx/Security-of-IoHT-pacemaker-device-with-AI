@@ -1,0 +1,13 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.ipynb_checkpoints/
+venv/
+.venv/
+node_modules/
+logs/events_*.csv
+logs/network_traffic_*.csv
+storage/logs/*

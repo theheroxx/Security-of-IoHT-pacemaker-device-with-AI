@@ -6,6 +6,7 @@ import paho.mqtt.client as mqtt
 import json
 import time
 import sys
+import os
 
 # ================= CLASS DEFS (Must match training) =================
 class RobustEnsemble(nn.Module):
@@ -58,7 +59,8 @@ except Exception as e:
     sys.exit(1)
 
 # ================= MQTT LOGIC =================
-BROKER = "127.0.0.1"
+BROKER = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
+BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
 TOPIC_INPUT = "ioht/network/data"
 TOPIC_OUTPUT_FUSION = "fusion/network_alert" # To Fusion Service
 TOPIC_OUTPUT_DASH = "ioht/network/result"    # To Dashboard
@@ -124,5 +126,5 @@ def on_message(client, userdata, msg):
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Net_AI")
 client.on_connect = on_connect
 client.on_message = on_message
-client.connect(BROKER, 1883)
+client.connect(BROKER, BROKER_PORT)
 client.loop_forever()

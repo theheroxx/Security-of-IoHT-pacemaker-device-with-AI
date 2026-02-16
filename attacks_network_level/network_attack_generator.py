@@ -2,7 +2,7 @@ import time, json, numpy as np, random, os
 import paho.mqtt.client as mqtt
 
 # Config
-BROKER = "127.0.0.1"
+BROKER = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
 TOPIC_DATA = "ioht/network/data"
 TOPIC_CONTROL = "simulation/master_control" # Matches your Dashboard
 DATA_PATH = "data/ECU_ready_scientific_no_smote.npz"
@@ -21,7 +21,7 @@ def on_msg(c, u, m):
     print(f"⚡ Net Sim Mode: {current_mode}")
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Net_Gen")
-client.connect(BROKER, 1883)
+client.connect(BROKER, int(os.getenv("MQTT_BROKER_PORT", "1883")))
 client.subscribe(TOPIC_CONTROL)
 client.on_message = on_msg
 client.loop_start()
