@@ -38,18 +38,9 @@ Open dashboard at:
 make down
 ```
 
-## New scaffolding folders
-
-- `apps/frontend/dashboard/` – frontend container definition
-- `apps/backend/*` – backend service container definitions
-- `apps/shared/ioht_common/` – shared topic constants scaffold
-- `infra/docker/` – compose and broker config
-- `infra/scripts/` – helper scripts
-- `storage/logs/` – runtime log volume target
-
 ## Environment variables
 
-Services now support:
+Services support:
 
 - `MQTT_BROKER_HOST` (default `127.0.0.1`)
 - `MQTT_BROKER_PORT` (default `1883`)
