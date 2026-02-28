@@ -9,7 +9,7 @@ This repository simulates hybrid cyber-physical attacks on an IoHT pacemaker wor
 - `ai_services/ecg_ai_service.py` (ECG anomaly detector)
 - `ai_services/network_security_ai.py` (network attack classifier)
 - `ai_services/fusion_service.py` (decision fusion engine)
-- `dashboard/master_dashboard.py` (frontend)
+- `dashboard/master_dashboard.py` (Streamlit frontend)
 
 
 <img width="1408" height="768" alt="530489177-a96a5836-03fe-499f-9f71-397946b9bbe4" src="https://github.com/user-attachments/assets/af59e855-c514-427b-8d7a-1916412c228c" />
