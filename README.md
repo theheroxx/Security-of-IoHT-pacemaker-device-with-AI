@@ -20,6 +20,8 @@ This repository simulates hybrid cyber-physical attacks on an IoHT pacemaker wor
 A Docker Compose setup has been added under `infra/docker/docker-compose.yml`.
 
 ### Quick start
+This project is dockerized, but for a fast test you can execute:
+run_simulation.bat
 
 ```bash
 cp .env.example .env
